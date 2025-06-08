@@ -1,0 +1,828 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>프레젠테이션 채팅</title>
+    <style>
+        :root {
+            --main-color: #ff9ed8;
+            --secondary-color: #f5f5f5;
+            --border-color: #e0e0e0;
+            --shadow-color: rgba(0, 0, 0, 0.1);
+            --success-color: #4caf50;
+            --error-color: #f44336;
+            --user-message-color: #e1f5fe;
+            --server-message-color: #fff8e1;
+            --waiting-message-color: #f3e5f5;
+        }
+        
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: 'Noto Sans KR', sans-serif;
+        }
+        
+        html, body {
+            height: 100%;
+            width: 100%;
+            overflow: hidden;
+            margin: 0;
+            padding: 0;
+        }
+        
+        body {
+            background-color: #ffffff;
+            color: #333333;
+            line-height: 1.6;
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .container {
+            max-width: 100%;
+            width: 100%;
+            height: 100vh;
+            padding: 1rem;
+            background-color: #ffffff;
+            display: flex;
+            flex-direction: column;
+        }
+        
+        header {
+            text-align: center;
+            padding-bottom: 0.8rem;
+            margin-bottom: 0.8rem;
+            border-bottom: 2px solid var(--border-color);
+            flex-shrink: 0;
+        }
+        
+        h1 {
+            color: var(--main-color);
+            font-size: 2.2rem;
+            margin-bottom: 0.3rem;
+        }
+        
+        .subtitle {
+            color: #666;
+            font-size: 1rem;
+        }
+        
+        .chat-container {
+            border: 1px solid var(--border-color);
+            border-radius: 15px;
+            overflow: hidden;
+            margin-bottom: 1rem;
+            background-color: var(--secondary-color);
+            flex: 1;
+            overflow-y: auto;
+            padding: 1rem;
+            position: relative;
+        }
+        
+        .drag-area {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(255, 255, 255, 0.9);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            border: 3px dashed var(--main-color);
+            border-radius: 15px;
+            z-index: 100;
+            opacity: 0;
+            visibility: hidden;
+            transition: opacity 0.3s, visibility 0.3s;
+            pointer-events: none;
+        }
+        
+        .drag-area.active {
+            opacity: 1;
+            visibility: visible;
+        }
+        
+        .drag-area-icon {
+            width: 80px;
+            height: 80px;
+            fill: var(--main-color);
+            margin-bottom: 1rem;
+        }
+        
+        .drag-area-text {
+            font-size: 1.5rem;
+            color: var(--main-color);
+            font-weight: bold;
+            text-align: center;
+        }
+        
+        .chat-form {
+            display: flex;
+            flex-direction: column;
+            gap: 0.8rem;
+            flex-shrink: 0;
+        }
+        
+        .chat-input-container {
+            display: flex;
+            gap: 0.8rem;
+        }
+        
+        .message-input {
+            flex: 1;
+            padding: 0.8rem;
+            border: 2px solid var(--border-color);
+            border-radius: 12px;
+            font-size: 1rem;
+            outline: none;
+            transition: border-color 0.3s;
+        }
+        
+        .message-input:focus {
+            border-color: var(--main-color);
+        }
+        
+        .send-button {
+            background-color: var(--main-color);
+            color: white;
+            border: none;
+            border-radius: 12px;
+            padding: 0 1.5rem;
+            font-size: 1rem;
+            font-weight: bold;
+            cursor: pointer;
+            transition: background-color 0.3s, transform 0.2s;
+        }
+        
+        .send-button:hover {
+            background-color: #ff7ecc;
+            transform: translateY(-2px);
+        }
+        
+        .send-button:active {
+            transform: translateY(0);
+        }
+        
+        .file-upload-container {
+            position: relative;
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            margin-bottom: 0.5rem;
+        }
+        
+        .file-upload-label {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            background-color: #f0f0f0;
+            padding: 0.8rem 1.2rem;
+            border-radius: 12px;
+            cursor: pointer;
+            border: 2px solid var(--border-color);
+            transition: background-color 0.3s, border-color 0.3s;
+        }
+        
+        .file-upload-label:hover {
+            background-color: #e6e6e6;
+            border-color: #d0d0d0;
+        }
+        
+        .file-upload-icon {
+            width: 24px;
+            height: 24px;
+            fill: #666;
+        }
+        
+        .file-input {
+            position: absolute;
+            width: 0.1px;
+            height: 0.1px;
+            opacity: 0;
+            overflow: hidden;
+            z-index: -1;
+        }
+        
+        .file-name {
+            margin-left: 0.5rem;
+            color: #666;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            max-width: 200px;
+        }
+        
+        .file-preview {
+            max-width: 300px;
+            max-height: 150px;
+            margin-top: 0.5rem;
+            border-radius: 10px;
+            box-shadow: 0 4px 8px var(--shadow-color);
+            display: none;
+        }
+        
+        .alert {
+            padding: 0.8rem;
+            margin-bottom: 0.8rem;
+            border-radius: 10px;
+            text-align: center;
+            font-weight: bold;
+            animation: fadeOut 5s forwards;
+        }
+        
+        .alert-success {
+            background-color: #e8f5e9;
+            color: var(--success-color);
+            border: 1px solid var(--success-color);
+        }
+        
+        .alert-error {
+            background-color: #ffebee;
+            color: var(--error-color);
+            border: 1px solid var(--error-color);
+        }
+        
+        .loading-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(255, 255, 255, 0.8);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+            opacity: 0;
+            visibility: hidden;
+            transition: opacity 0.3s, visibility 0.3s;
+        }
+        
+        .loading-spinner {
+            width: 60px;
+            height: 60px;
+            border: 6px solid #f3f3f3;
+            border-top: 6px solid var(--main-color);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        @keyframes fadeOut {
+            0% { opacity: 1; }
+            70% { opacity: 1; }
+            100% { opacity: 0; }
+        }
+        
+        footer {
+            text-align: center;
+            padding: 0.5rem 0;
+            color: #999;
+            font-size: 0.8rem;
+            flex-shrink: 0;
+        }
+        
+        /* 채팅 메시지 스타일 */
+        .message {
+            margin-bottom: 1rem;
+            padding: 1rem;
+            border-radius: 12px;
+            position: relative;
+            max-width: 80%;
+            box-shadow: 0 2px 5px var(--shadow-color);
+            animation: fadeIn 0.3s ease-in-out;
+        }
+        
+        .message-user {
+            background-color: var(--user-message-color);
+            margin-left: auto;
+            border-bottom-right-radius: 0;
+        }
+        
+        .message-server {
+            background-color: var(--server-message-color);
+            margin-right: auto;
+            border-bottom-left-radius: 0;
+        }
+        
+        .message-waiting {
+            background-color: var(--waiting-message-color);
+            margin-right: auto;
+            border-bottom-left-radius: 0;
+        }
+        
+        .message-header {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 0.5rem;
+            font-size: 0.85rem;
+            color: #666;
+        }
+        
+        .message-sender {
+            font-weight: bold;
+        }
+        
+        .message-time {
+            margin-left: 1rem;
+        }
+        
+        .message-content {
+            word-break: break-word;
+        }
+        
+        .message-image {
+            max-width: 100%;
+            max-height: 200px;
+            border-radius: 8px;
+            margin-top: 0.5rem;
+            cursor: pointer;
+            transition: transform 0.3s;
+        }
+        
+        .message-image:hover {
+            transform: scale(1.02);
+        }
+        
+        .typing-indicator {
+            display: inline-flex;
+            align-items: center;
+            margin-left: 0.5rem;
+        }
+        
+        .typing-indicator span {
+            height: 8px;
+            width: 8px;
+            background-color: #9e9e9e;
+            border-radius: 50%;
+            display: inline-block;
+            margin-right: 3px;
+            animation: blink 1.4s infinite both;
+        }
+        
+        .typing-indicator span:nth-child(2) {
+            animation-delay: 0.2s;
+        }
+        
+        .typing-indicator span:nth-child(3) {
+            animation-delay: 0.4s;
+        }
+        
+        @keyframes blink {
+            0% { opacity: 0.1; }
+            20% { opacity: 1; }
+            100% { opacity: 0.1; }
+        }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        #alertContainer {
+            position: fixed;
+            top: 10px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 1001;
+            width: 80%;
+            max-width: 500px;
+        }
+        
+        /* 모바일 반응형 */
+        @media (max-width: 768px) {
+            h1 {
+                font-size: 1.8rem;
+            }
+            
+            .message {
+                max-width: 90%;
+            }
+            
+            .file-upload-container {
+                flex-direction: column;
+                align-items: flex-start;
+            }
+            
+            .file-name {
+                margin-left: 0;
+                margin-top: 0.5rem;
+            }
+        }
+        
+        .preview-container {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-top: 10px;
+        }
+        
+        .preview-item {
+            position: relative;
+            width: 150px;
+        }
+        
+        .preview-item img {
+            width: 100%;
+            height: 100px;
+            object-fit: cover;
+            border-radius: 8px;
+        }
+        
+        .remove-button {
+            position: absolute;
+            top: -8px;
+            right: -8px;
+            background: #ff4444;
+            color: white;
+            border: none;
+            border-radius: 50%;
+            width: 24px;
+            height: 24px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .file-list {
+            margin-top: 10px;
+            font-size: 0.9rem;
+            color: #666;
+        }
+        
+        .file-item {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 5px;
+            background: #f5f5f5;
+            border-radius: 4px;
+            margin-bottom: 5px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>프레젠테이션 채팅</h1>
+            <p class="subtitle">메시지와 이미지를 공유해보세요!</p>
+        </header>
+        
+        <!-- 채팅 메시지 표시 영역 -->
+        <div class="chat-container" id="chatContainer">
+            <!-- 메시지가 여기에 동적으로 추가됩니다 -->
+            <div class="drag-area" id="dragArea">
+                <svg class="drag-area-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+                    <path d="M19.35 10.04C18.67 6.59 15.64 4 12 4 9.11 4 6.6 5.64 5.35 8.04 2.34 8.36 0 10.91 0 14c0 3.31 2.69 6 6 6h13c2.76 0 5-2.24 5-5 0-2.64-2.05-4.78-4.65-4.96zM14 13v4h-4v-4H7l5-5 5 5h-3z"/>
+                </svg>
+                <p class="drag-area-text">파일을 여기에 드롭하세요</p>
+            </div>
+        </div>
+        
+        <!-- 메시지 입력 폼 -->
+        <form class="chat-form" id="chatForm">
+            <div class="file-upload-container">
+                <label for="fileInput" class="file-upload-label">
+                    <svg class="file-upload-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+                        <path d="M19.35 10.04C18.67 6.59 15.64 4 12 4 9.11 4 6.6 5.64 5.35 8.04 2.34 8.36 0 10.91 0 14c0 3.31 2.69 6 6 6h13c2.76 0 5-2.24 5-5 0-2.64-2.05-4.78-4.65-4.96zM14 13v4h-4v-4H7l5-5 5 5h-3z"/>
+                    </svg>
+                    파일 선택 (여러 파일 가능)
+                </label>
+                <input type="file" id="fileInput" name="files" class="file-input" accept="image/*" multiple>
+                <div id="fileList" class="file-list"></div>
+            </div>
+            
+            <div id="previewContainer" class="preview-container"></div>
+            
+            <div class="chat-input-container">
+                <input type="text" id="messageInput" name="message" class="message-input" placeholder="메시지를 입력하세요..." required>
+                <button type="submit" class="send-button">전송</button>
+            </div>
+        </form>
+        
+        <footer>
+            <p>© 2023 프레젠테이션 채팅 서비스</p>
+        </footer>
+    </div>
+    
+    <!-- 알림 메시지 표시 영역 -->
+    <div id="alertContainer"></div>
+    
+    <div class="loading-overlay" id="loadingOverlay">
+        <div class="loading-spinner"></div>
+    </div>
+    
+    <script>
+        // DOM 요소 참조
+        const fileInput = document.getElementById('fileInput');
+        const fileName = document.getElementById('fileName');
+        const imagePreview = document.getElementById('imagePreview');
+        const chatForm = document.getElementById('chatForm');
+        const messageInput = document.getElementById('messageInput');
+        const loadingOverlay = document.getElementById('loadingOverlay');
+        const chatContainer = document.getElementById('chatContainer');
+        const alertContainer = document.getElementById('alertContainer');
+        const dragArea = document.getElementById('dragArea');
+        const previewContainer = document.getElementById('previewContainer');
+        const fileList = document.getElementById('fileList');
+        
+        const uploadedFiles = new Map();
+        
+        // 드래그 앤 드롭 이벤트 처리
+        ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+            chatContainer.addEventListener(eventName, preventDefaults, false);
+        });
+        
+        function preventDefaults(e) {
+            e.preventDefault();
+            e.stopPropagation();
+        }
+        
+        // 드래그 시작/오버 시 표시
+        ['dragenter', 'dragover'].forEach(eventName => {
+            chatContainer.addEventListener(eventName, () => {
+                dragArea.classList.add('active');
+            }, false);
+        });
+        
+        // 드래그 떠남/끝 시 숨김
+        ['dragleave', 'drop'].forEach(eventName => {
+            chatContainer.addEventListener(eventName, () => {
+                dragArea.classList.remove('active');
+            }, false);
+        });
+        
+        // 파일 드롭 처리
+        chatContainer.addEventListener('drop', handleDrop, false);
+        
+        function handleDrop(e) {
+            const droppedFiles = e.dataTransfer.files;
+            if (droppedFiles && droppedFiles.length > 0) {
+                handleFile(droppedFiles);
+            }
+        }
+        
+        function handleFile(files) {
+            Array.from(files).forEach(file => {
+                if (!file.type.match('image.*')) {
+                    showAlert('이미지 파일만 업로드 가능합니다.', 'error');
+                    return;
+                }
+                
+                uploadedFiles.set(file.name, file);
+                createPreview(file);
+                updateFileList();
+            });
+        }
+        
+        function createPreview(file) {
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                const previewItem = document.createElement('div');
+                previewItem.className = 'preview-item';
+                previewItem.innerHTML = `
+                    <img src="${e.target.result}" alt="${file.name}">
+                    <button class="remove-button" onclick="removeFile('${file.name}')">×</button>
+                `;
+                previewContainer.appendChild(previewItem);
+            };
+            reader.readAsDataURL(file);
+        }
+        
+        function removeFile(fileName) {
+            uploadedFiles.delete(fileName);
+            updateFileList();
+            updatePreviews();
+        }
+        
+        function updateFileList() {
+            fileList.innerHTML = '';
+            uploadedFiles.forEach((file, name) => {
+                const fileItem = document.createElement('div');
+                fileItem.className = 'file-item';
+                fileItem.innerHTML = `
+                    <span>${name}</span>
+                    <span>${formatFileSize(file.size)}</span>
+                `;
+                fileList.appendChild(fileItem);
+            });
+        }
+        
+        function updatePreviews() {
+            previewContainer.innerHTML = '';
+            uploadedFiles.forEach((file) => {
+                createPreview(file);
+            });
+        }
+        
+        function formatFileSize(bytes) {
+            if (bytes === 0) return '0 Bytes';
+            const k = 1024;
+            const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+            const i = Math.floor(Math.log(bytes) / Math.log(k));
+            return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+        }
+        
+        // 파일 입력 이벤트 수정
+        fileInput.addEventListener('change', function() {
+            if (this.files && this.files.length > 0) {
+                handleFile(this.files);
+            }
+        });
+        
+        // 채팅 폼 제출 처리
+        chatForm.addEventListener('submit', function(e) {
+            e.preventDefault();
+            
+            const message = messageInput.value.trim();
+            if (!message) return;
+            
+            addUserMessage(message);
+            const waitingMessageId = addWaitingMessage();
+            
+            const formData = new FormData();
+            formData.append('message', message);
+            
+            // 여러 파일 추가
+            uploadedFiles.forEach((file) => {
+                formData.append('files', file);
+            });
+            
+            // 서버에 전송
+            fetch('/presentation/send', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => {
+                if (!response.ok) throw new Error('서버 응답 오류');
+                return response.text();
+            })
+            .then(data => {
+                removeMessage(waitingMessageId);
+                addServerMessage(data);
+                showAlert('메시지가 성공적으로 전송되었습니다!', 'success');
+                
+                // 폼 초기화
+                messageInput.value = '';
+                uploadedFiles.clear();
+                previewContainer.innerHTML = '';
+                fileList.innerHTML = '';
+                fileInput.value = '';
+            })
+            .catch(error => {
+                console.error('전송 오류:', error);
+                removeMessage(waitingMessageId);
+                showAlert('메시지 전송 중 오류가 발생했습니다.', 'error');
+            })
+            .finally(() => {
+                loadingOverlay.style.opacity = '0';
+                loadingOverlay.style.visibility = 'hidden';
+            });
+            
+            loadingOverlay.style.opacity = '1';
+            loadingOverlay.style.visibility = 'visible';
+        });
+        
+        // 사용자 메시지 추가 함수
+        function addUserMessage(content, imageUrl = null) {
+            const messageElement = createMessageElement('사용자', content, 'message-user', imageUrl);
+            chatContainer.appendChild(messageElement);
+            scrollToBottom();
+        }
+        
+        // 서버 메시지 추가 함수
+        function addServerMessage(content, imageUrl = null) {
+            const messageElement = createMessageElement('서버', content, 'message-server', imageUrl);
+            chatContainer.appendChild(messageElement);
+            scrollToBottom();
+        }
+        
+        // 대기 메시지 추가 함수
+        function addWaitingMessage() {
+            const id = 'waiting-' + Date.now();
+            const messageElement = document.createElement('div');
+            messageElement.id = id;
+            messageElement.className = 'message message-waiting';
+            
+            const headerElement = document.createElement('div');
+            headerElement.className = 'message-header';
+            
+            const senderElement = document.createElement('span');
+            senderElement.className = 'message-sender';
+            senderElement.textContent = '서버';
+            
+            const timeElement = document.createElement('span');
+            timeElement.className = 'message-time';
+            timeElement.textContent = getCurrentTime();
+            
+            headerElement.appendChild(senderElement);
+            headerElement.appendChild(timeElement);
+            
+            const contentElement = document.createElement('div');
+            contentElement.className = 'message-content';
+            contentElement.textContent = '응답 대기중';
+            
+            const typingIndicator = document.createElement('div');
+            typingIndicator.className = 'typing-indicator';
+            typingIndicator.innerHTML = '<span></span><span></span><span></span>';
+            
+            contentElement.appendChild(typingIndicator);
+            
+            messageElement.appendChild(headerElement);
+            messageElement.appendChild(contentElement);
+            
+            chatContainer.appendChild(messageElement);
+            scrollToBottom();
+            
+            return id;
+        }
+        
+        // 메시지 요소 생성 함수
+        function createMessageElement(sender, content, messageClass, imageUrl = null) {
+            const messageElement = document.createElement('div');
+            messageElement.className = `message ${messageClass}`;
+            
+            const headerElement = document.createElement('div');
+            headerElement.className = 'message-header';
+            
+            const senderElement = document.createElement('span');
+            senderElement.className = 'message-sender';
+            senderElement.textContent = sender;
+            
+            const timeElement = document.createElement('span');
+            timeElement.className = 'message-time';
+            timeElement.textContent = getCurrentTime();
+            
+            headerElement.appendChild(senderElement);
+            headerElement.appendChild(timeElement);
+            
+            const contentElement = document.createElement('div');
+            contentElement.className = 'message-content';
+            contentElement.textContent = content;
+            
+            messageElement.appendChild(headerElement);
+            messageElement.appendChild(contentElement);
+            
+            // 이미지 URL이 있으면 이미지 요소 추가
+            if (imageUrl) {
+                const imageElement = document.createElement('img');
+                imageElement.className = 'message-image';
+                imageElement.src = imageUrl;
+                imageElement.alt = '첨부 이미지';
+                imageElement.addEventListener('click', function() {
+                    window.open(this.src, '_blank');
+                });
+                messageElement.appendChild(imageElement);
+            }
+            
+            return messageElement;
+        }
+        
+        // 메시지 제거 함수
+        function removeMessage(id) {
+            const messageElement = document.getElementById(id);
+            if (messageElement) {
+                messageElement.remove();
+            }
+        }
+        
+        // 현재 시간 포맷팅 함수
+        function getCurrentTime() {
+            const now = new Date();
+            return now.getHours().toString().padStart(2, '0') + ':' + 
+                   now.getMinutes().toString().padStart(2, '0');
+        }
+        
+        // 알림 메시지 표시 함수
+        function showAlert(message, type) {
+            const alertElement = document.createElement('div');
+            alertElement.className = `alert alert-${type}`;
+            alertElement.textContent = message;
+            
+            alertContainer.appendChild(alertElement);
+            
+            // 5초 후 알림 자동으로 사라짐
+            setTimeout(() => {
+                alertElement.style.opacity = '0';
+                setTimeout(() => {
+                    alertElement.remove();
+                }, 500);
+            }, 5000);
+        }
+        
+        // 채팅창을 항상 최신 메시지 위치로 스크롤
+        function scrollToBottom() {
+            chatContainer.scrollTop = chatContainer.scrollHeight;
+        }
+    </script>
+</body>
+</html> 

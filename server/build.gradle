@@ -1,0 +1,86 @@
+plugins {
+	id 'java'
+	id 'org.springframework.boot' version '3.4.3'
+	id 'io.spring.dependency-management' version '1.1.7'
+}
+
+group = 'com.example'
+version = '0.0.1-SNAPSHOT'
+
+java {
+	toolchain {
+		languageVersion = JavaLanguageVersion.of(17)
+	}
+}
+
+configurations {
+	compileOnly {
+		extendsFrom annotationProcessor
+	}
+}
+
+repositories {
+	mavenCentral()
+}
+
+//TODO 향후 버전 업데이트 시 버전 업
+ext {
+	set('springAiVersion', "1.0.0-M6")
+}
+
+//Spring 진영에서 sdk bugfix 버전으로 동기화x
+//TODO 향후 버전 업데이트 시 제거 가능 여부 확인
+configurations.configureEach {
+	resolutionStrategy {
+		force 'io.modelcontextprotocol.sdk:mcp-spring-webmvc:0.8.1'
+	}
+}
+
+dependencies {
+	// Selenium 의존성
+	implementation 'org.seleniumhq.selenium:selenium-java:4.15.0'
+
+	// WebDriver 매니저 - 드라이버 자동 설치
+	implementation 'io.github.bonigarcia:webdrivermanager:5.5.3'
+
+	// 이미지 처리를 위한 의존성
+	implementation 'org.imgscalr:imgscalr-lib:4.2'
+
+	//Pool 관리 라이브러리
+	implementation 'org.apache.commons:commons-pool2:2.11.1'
+
+	//Apache POI
+	implementation 'org.apache.poi:poi:5.2.3'
+	implementation 'org.apache.poi:poi-ooxml:5.2.3'
+
+	//WebMvc mcp server 의존성
+	implementation 'org.springframework.ai:spring-ai-mcp-server-spring-boot-starter'
+	implementation 'org.springframework.ai:spring-ai-mcp-server-webmvc-spring-boot-starter'
+//	implementation 'org.springframework.ai:spring-ai-mcp-server-webmvc-spring-boot-starter:1.0.0-M6'
+//	implementation 'org.springframework.ai:spring-ai-mcp-server-spring-boot-starter:1.0.0-M6'
+
+	//DB
+	implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
+	implementation 'org.postgresql:postgresql'
+
+	testImplementation 'org.springframework.boot:spring-boot-starter-test'
+
+	compileOnly 'org.projectlombok:lombok'
+	annotationProcessor 'org.projectlombok:lombok'
+	testImplementation 'org.springframework.boot:spring-boot-starter-test'
+	testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+}
+
+dependencyManagement {
+	imports {
+		mavenBom "org.springframework.ai:spring-ai-bom:${springAiVersion}"
+	}
+}
+
+tasks.named('test') {
+	useJUnitPlatform()
+}
+
+
+
+
