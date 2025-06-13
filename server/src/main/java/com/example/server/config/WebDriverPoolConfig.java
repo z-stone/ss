@@ -11,7 +11,7 @@ import org.openqa.selenium.chrome.ChromeOptions;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
-//TODO : WebDriverPool (따로 사용은 안하고 있는 상태)
+//TODO : WebDriverPool (사용 안하고 있는 상태)
 @Configuration
 public class WebDriverPoolConfig {
     @Bean
